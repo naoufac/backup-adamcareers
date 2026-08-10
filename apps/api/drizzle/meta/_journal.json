@@ -15,6 +15,13 @@
       "when": 1786171864827,
       "tag": "0001_lush_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786335149938,
+      "tag": "0002_lively_nova",
+      "breakpoints": true
     }
   ]
 }

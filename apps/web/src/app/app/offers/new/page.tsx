@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
 
 export default function NewOfferPage() {

@@ -3,19 +3,27 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
+
+interface Profile {
+  cvPublic?: boolean;
+  analyticsEnabled?: boolean;
+  cvViews?: number;
+}
 
 export default function AccountPage() {
   const { user, loading, refresh } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
-  const [locale, setLocale] = useState<"fr" | "en">("fr");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [cv, setCv] = useState<unknown | null | "loading">("loading");
+  const [cvBusy, setCvBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/auth");
@@ -24,8 +32,26 @@ export default function AccountPage() {
   useEffect(() => {
     if (user) {
       setName(user.name ?? "");
-      setLocale((user.locale as "fr" | "en") ?? "fr");
+      api<{ profile: Profile }>("/api/me/profile")
+        .then((d) => setProfile(d.profile))
+        .catch(() => setProfile(null));
     }
+  }, [user]);
+
+  const fetchCv = async () => {
+    setCvBusy(true);
+    try {
+      const data = await api<{ cv: unknown | null }>("/api/cv/mine");
+      setCv(data.cv ?? null);
+    } catch {
+      setCv(null);
+    } finally {
+      setCvBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCv();
   }, [user]);
 
   const submit = async (e: React.FormEvent) => {
@@ -34,7 +60,7 @@ export default function AccountPage() {
     if (password && password !== confirm) { setErr("Les mots de passe ne correspondent pas."); return; }
     if (password && password.length < 8) { setErr("Le mot de passe doit faire au moins 8 caractères."); return; }
     setBusy(true);
-    const json: Record<string, string> = { name, locale };
+    const json: Record<string, string> = { name };
     if (password) json.password = password;
     try {
       await api("/api/me/profile", { method: "POST", json });
@@ -45,6 +71,39 @@ export default function AccountPage() {
       setErr(e instanceof Error ? e.message : "Erreur");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleCvPublic = async () => {
+    const next = !profile?.cvPublic;
+    setProfile((p) => ({ ...p, cvPublic: next }));
+    try {
+      await api("/api/me/profile", { method: "POST", json: { cvPublic: next } });
+      setOk("Préférence mise à jour ✓");
+    } catch (e) {
+      setProfile((p) => ({ ...p, cvPublic: !next }));
+      setErr(e instanceof Error ? e.message : "Erreur");
+    }
+  };
+
+  const downloadCv = async () => {
+    setCvBusy(true);
+    try {
+      const data = await api<{ cv: unknown | null }>("/api/cv/mine");
+      if (!data.cv) { setErr("Aucun CV enregistré."); return; }
+      const blob = new Blob([JSON.stringify(data.cv, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cv-adamcareers.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setCvBusy(false);
     }
   };
 
@@ -83,16 +142,6 @@ export default function AccountPage() {
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-adam-700" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Langue</label>
-            <div className="flex gap-2">
-              {(["fr", "en"] as const).map((l) => (
-                <button key={l} type="button" onClick={() => setLocale(l)} className={`flex-1 rounded-lg border py-2 text-sm font-medium ${locale === l ? "border-adam-700 bg-adam-50 text-adam-700" : "border-slate-300 text-slate-500"}`}>
-                  {l === "fr" ? "Français" : "English"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Nouveau mot de passe</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Laisser vide pour ne pas changer" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-adam-700" />
           </div>
@@ -107,6 +156,46 @@ export default function AccountPage() {
             {busy ? "..." : "Enregistrer les modifications"}
           </button>
         </form>
+
+        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Mon CV</h2>
+
+          <div className="flex items-center justify-between border-b border-slate-100 py-3">
+            <span className="text-sm font-medium text-slate-700">Visibilité publique du CV</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">{profile?.cvPublic ? "ON" : "OFF"}</span>
+              <button
+                type="button"
+                onClick={toggleCvPublic}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${profile?.cvPublic ? "bg-adam-700" : "bg-slate-300"}`}
+                aria-pressed={profile?.cvPublic ?? false}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${profile?.cvPublic ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-100 py-3">
+            <span className="text-sm font-medium text-slate-700">Analyses (vues)</span>
+            <span className="text-sm font-semibold text-slate-900">{profile?.cvViews ?? 0}</span>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-4">
+            {cv === "loading" ? (
+              <span className="text-sm text-slate-400">Chargement du CV...</span>
+            ) : cv === null ? (
+              <span className="text-sm text-slate-500">Aucun CV enregistré</span>
+            ) : (
+              <button
+                onClick={downloadCv}
+                disabled={cvBusy}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {cvBusy ? "..." : "Télécharger mon CV"}
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="mt-8 rounded-xl border border-red-100 bg-red-50/50 p-6">
           <h2 className="text-sm font-semibold text-red-800">Zone de danger</h2>

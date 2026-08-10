@@ -38,9 +38,9 @@ export const MARKETING_LINKS: NavLink[] = [
 
 export const APP_LINKS: NavLink[] = [
   { href: "/app", label: { fr: "Tableau de bord", en: "Dashboard" }, appOnly: true },
-  { href: "/app/offers/new", label: { fr: "Adapter", en: "Adapt" }, appOnly: true },
-  { href: "/app/builder", label: { fr: "CV", en: "CV" }, appOnly: true },
   { href: "/app/upload", label: { fr: "Importer", en: "Import" }, appOnly: true },
+  { href: "/app/builder", label: { fr: "CV", en: "CV" }, appOnly: true },
+  { href: "/app/offers/new", label: { fr: "Adapter", en: "Adapt" }, appOnly: true },
 ];
 
 export const USER_DROPDOWN_LINKS: NavLink[] = [

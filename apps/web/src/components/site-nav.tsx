@@ -26,6 +26,8 @@ export function SiteNav({ mode }: SiteNavProps) {
   const links = linksForMode(mode).filter((l) => !l.external);
   const isActive = (href: string) => {
     if (href === "/app") return pathname === href;
+    if (href === "/app/account") return pathname.startsWith("/app/account");
+    if (href === "/app/upload") return pathname === href || pathname.startsWith("/app/upload/");
     return pathname === href || pathname.startsWith(href + "/");
   };
 

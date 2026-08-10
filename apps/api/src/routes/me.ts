@@ -44,9 +44,14 @@ export default async function meRoutes(app: FastifyInstance): Promise<void> {
       .limit(1);
     const profile = rows[0];
     return {
-      onboarded: Boolean(profile?.onboardedAt),
-      cv: profile?.cvJson ?? null,
-      writingStyle: profile?.writingStyle ?? null,
+      profile: {
+        onboarded: Boolean(profile?.onboardedAt),
+        cv: profile?.cvJson ?? null,
+        writingStyle: profile?.writingStyle ?? null,
+        cvPublic: profile?.cvPublic ?? false,
+        analyticsEnabled: profile?.analyticsEnabled ?? false,
+        cvViews: profile?.cvViews ?? 0,
+      },
     };
   });
 
@@ -113,6 +118,8 @@ export default async function meRoutes(app: FastifyInstance): Promise<void> {
         name: z.string().min(1).optional(),
         locale: z.enum(["fr", "en"]).optional(),
         password: z.string().min(8).optional(),
+        cvPublic: z.boolean().optional(),
+        analyticsEnabled: z.boolean().optional(),
       })
       .passthrough();
 
@@ -129,6 +136,25 @@ export default async function meRoutes(app: FastifyInstance): Promise<void> {
 
     if (Object.keys(updates).length > 0) {
       await db.update(schema.users).set({ ...updates, updatedAt: new Date() }).where(eq(schema.users.id, me.id));
+    }
+
+    const profileUpdates: { cvPublic?: boolean; analyticsEnabled?: boolean } = {};
+    if (typeof body.data.cvPublic === "boolean") profileUpdates.cvPublic = body.data.cvPublic;
+    if (typeof body.data.analyticsEnabled === "boolean") profileUpdates.analyticsEnabled = body.data.analyticsEnabled;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const rows = await db
+        .select({ id: schema.masterProfiles.id })
+        .from(schema.masterProfiles)
+        .where(eq(schema.masterProfiles.userId, me.id))
+        .limit(1);
+      const profile = rows[0];
+      if (profile) {
+        await db
+          .update(schema.masterProfiles)
+          .set({ ...profileUpdates, updatedAt: new Date() })
+          .where(eq(schema.masterProfiles.id, profile.id));
+      }
     }
 
     return { ok: true };

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
 import { ExportBar } from "@/components/export-bar";
 import { CvEditor } from "@/components/cv-editor";

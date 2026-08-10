@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
 import { CvScorecard, type Scores } from "@/components/scorecard";
 import { CvEditor } from "@/components/cv-editor";
@@ -30,6 +30,17 @@ interface Message {
   text: string;
 }
 
+interface SavedInterview {
+  locale: "fr" | "en";
+  targetRole: string;
+  messages: Message[];
+  answers: Record<string, string>;
+  questions: string[];
+  questionIndex: number;
+}
+
+const STORAGE_KEY = "adam_interview";
+
 export default function BuilderPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -44,10 +55,57 @@ export default function BuilderPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState(false);
+  const [started, setStarted] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/auth");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!user || loading || result) return;
+    const savedRaw = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    if (savedRaw) {
+      try {
+        const parsed: SavedInterview = JSON.parse(savedRaw);
+        if (parsed && parsed.messages && parsed.messages.length > 0) {
+          setLocale(parsed.locale ?? "fr");
+          setTargetRole(parsed.targetRole ?? "");
+          setMessages(parsed.messages ?? []);
+          setAnswers(parsed.answers ?? {});
+          setQuestions(parsed.questions ?? []);
+          setQuestionIndex(parsed.questionIndex ?? 0);
+          setStarted(true);
+          return;
+        }
+      } catch {
+        // ignore invalid localStorage
+      }
+    }
+    api<{ cv: CvData | null }>("/api/cv/mine")
+      .then((d) => {
+        if (d.cv) {
+          setResult({ cv: d.cv, questions: [], scores: { violations: [], complianceScore: 0, atsScore: 0 } });
+        }
+      })
+      .catch(() => {});
+  }, [user, loading, result]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !started || messages.length === 0) return;
+    if (result) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    const state: SavedInterview = { locale, targetRole, messages, answers, questions, questionIndex };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [locale, targetRole, messages, answers, questions, questionIndex, started, result]);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, busy, questionIndex]);
 
   if (loading || !user) {
     return (
@@ -63,8 +121,23 @@ export default function BuilderPage() {
     );
   }
 
+  const resetInterview = () => {
+    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
+    setLocale("fr");
+    setTargetRole("");
+    setMessages([]);
+    setQuestions([]);
+    setAnswers({});
+    setCurrentAnswer("");
+    setQuestionIndex(0);
+    setResult(null);
+    setStarted(false);
+    setErr("");
+  };
+
   const startInterview = async () => {
-    setErr(""); setBusy(true);
+    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
+    setErr(""); setBusy(true); setStarted(true);
     try {
       const data = await api<{ questions: string[] }>("/api/cv/build", {
         method: "POST",
@@ -74,6 +147,9 @@ export default function BuilderPage() {
       setQuestions(qs);
       setMessages([{ role: "adam", text: qs[0] ?? "Parlez-moi de votre expérience principale." }]);
       setQuestionIndex(0);
+      setAnswers({});
+      setCurrentAnswer("");
+      setResult(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -123,6 +199,7 @@ export default function BuilderPage() {
     try {
       await api("/api/cv/mine", { method: "PUT", json: { cv: result.cv } });
       setSaved(true);
+      if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur de sauvegarde");
@@ -156,15 +233,20 @@ export default function BuilderPage() {
                 <input value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="ex: Data Analyst" className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-adam-700" />
               </div>
             </div>
-            <button onClick={startInterview} disabled={busy} className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800 disabled:opacity-50">
-              {busy ? "..." : "Commencer l'interview avec Adam"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button onClick={startInterview} disabled={busy} className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800 disabled:opacity-50">
+                {busy ? "..." : "Commencer l'interview avec Adam"}
+              </button>
+              <Link href="/app/upload" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                Importer mon CV
+              </Link>
+            </div>
           </div>
         )}
 
         {!result && messages.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 max-h-[420px] space-y-3 overflow-y-auto">
+            <div ref={messagesContainerRef} className="mb-4 max-h-[420px] space-y-3 overflow-y-auto">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "adam" ? "justify-start" : "justify-end"}`}>
                   <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role === "adam" ? "rounded-tl-none bg-slate-100 text-slate-800" : "rounded-tr-none bg-adam-700 text-white"}`}>
@@ -186,6 +268,15 @@ export default function BuilderPage() {
                 <button onClick={sendAnswer} className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800">Envoyer</button>
               </div>
             )}
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={resetInterview}
+                className="text-sm font-medium text-slate-500 underline hover:text-slate-700"
+              >
+                Recommencer l'interview
+              </button>
+            </div>
           </div>
         )}
 
@@ -205,6 +296,15 @@ export default function BuilderPage() {
               </div>
               <CvEditor cv={result.cv} onChange={updateCv} />
               {err && <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{err}</p>}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={resetInterview}
+                  className="text-sm font-medium text-slate-500 underline hover:text-slate-700"
+                >
+                  Refaire l'interview
+                </button>
+              </div>
             </div>
             <div className="mt-6 lg:mt-0">
               <CvScorecard scores={result.scores} />

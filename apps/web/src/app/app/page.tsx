@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { AppHeader } from "@/components/app-header";
+import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
 
 interface Usage {
@@ -136,6 +136,45 @@ function AppHomeContent() {
                 <Link href="/app/builder" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Modifier</Link>
                 <Link href="/app/offers/new" className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800">Adapter à une offre</Link>
               </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 border-t border-slate-100 pt-5 text-sm text-slate-600 sm:grid-cols-2">
+              <div>
+                <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Contact</h3>
+                <p>{[cv.contact?.name, cv.contact?.email, cv.contact?.phone, cv.contact?.location].filter(Boolean).join(" · ") || "Non renseigné"}</p>
+              </div>
+              {cv.summary && (
+                <div className="sm:col-span-2">
+                  <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Résumé</h3>
+                  <p className="line-clamp-3">{cv.summary}</p>
+                </div>
+              )}
+              {cv.coreCompetencies && cv.coreCompetencies.length > 0 && (
+                <div className="sm:col-span-2">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Top compétences</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cv.coreCompetencies.slice(0, 5).map((skill, i) => (
+                      <span key={i} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{skill}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {cv.experience && cv.experience.length > 0 && (
+                <div>
+                  <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Expérience récente</h3>
+                  <p className="font-medium text-slate-800">{cv.experience[0].title}</p>
+                  <p>{cv.experience[0].company}</p>
+                  <p className="text-xs text-slate-500">{[cv.experience[0].startDate, cv.experience[0].endDate].filter(Boolean).join(" — ")}</p>
+                </div>
+              )}
+              {cv.education && cv.education.length > 0 && (
+                <div>
+                  <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Formation récente</h3>
+                  <p className="font-medium text-slate-800">{cv.education[0].degree}</p>
+                  <p>{cv.education[0].institution}</p>
+                  <p className="text-xs text-slate-500">{cv.education[0].field}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -35,6 +35,9 @@ export const masterProfiles = pgTable("master_profiles", {
   freeExportsUsed: integer("free_exports_used").notNull().default(0),
   paid: boolean("paid").notNull().default(false),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  cvPublic: boolean("cv_public").default(false).notNull(),
+  analyticsEnabled: boolean("analytics_enabled").default(false).notNull(),
+  cvViews: integer("cv_views").default(0).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
