@@ -18,6 +18,8 @@ COPY apps/web/tailwind.config.ts apps/web/tailwind.config.ts
 COPY apps/web/next-env.d.ts apps/web/next-env.d.ts
 COPY apps/web/src apps/web/src
 RUN pnpm install --filter @adamjobs/web...
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN pnpm --filter @adamjobs/web build
 
 # Standalone output mirrors the monorepo root (outputFileTracingRoot),

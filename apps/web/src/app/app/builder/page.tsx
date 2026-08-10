@@ -1,26 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { AppHeader } from "@/components/app-header";
 import { api } from "@/lib/api";
 import { CvScorecard, type Scores } from "@/components/scorecard";
-import { CvPreview } from "@/components/cv-preview";
+import { CvEditor } from "@/components/cv-editor";
+import { ExportBar } from "@/components/export-bar";
 
 interface CvData {
   contact?: { name?: string; email?: string; phone?: string; location?: string };
   summary?: string;
   coreCompetencies?: string[];
-  experience?: {
-    company?: string;
-    title?: string;
-    startDate?: string;
-    endDate?: string;
-    location?: string;
-    bullets?: string[];
-  }[];
+  experience?: { title?: string; company?: string; startDate?: string; endDate?: string; bullets?: string[] }[];
   education?: { institution?: string; degree?: string; field?: string }[];
-  languages?: { name: string; level: string }[];
+  languages?: { name: string; level?: string }[];
 }
 
 interface BuildResult {
@@ -29,38 +25,55 @@ interface BuildResult {
   scores: Scores;
 }
 
+interface Message {
+  role: "adam" | "user";
+  text: string;
+}
+
 export default function BuilderPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [locale, setLocale] = useState<"fr" | "en">("fr");
   const [targetRole, setTargetRole] = useState("");
-  const [answers, setAnswers] = useState("");
-  const [phase, setPhase] = useState<"input" | "result">("input");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [questions, setQuestions] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [currentAnswer, setCurrentAnswer] = useState("");
+  const [questionIndex, setQuestionIndex] = useState(0);
   const [result, setResult] = useState<BuildResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [saved, setSaved] = useState(false);
 
-  if (loading) return <main className="p-8 text-slate-500">Chargement...</main>;
-  if (!user) {
-    router.push("/auth");
-    return null;
+  useEffect(() => {
+    if (!loading && !user) router.push("/auth");
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+                <main className="mx-auto max-w-5xl px-6 py-10">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-64 rounded bg-slate-200" />
+            <div className="h-64 rounded-xl bg-slate-100" />
+          </div>
+        </main>
+      </div>
+    );
   }
 
-  const runInterview = async () => {
-    setErr("");
-    setBusy(true);
+  const startInterview = async () => {
+    setErr(""); setBusy(true);
     try {
-      const seed = {
-        targetRole: targetRole || undefined,
-        name: user.name || undefined,
-        email: user.email,
-      };
       const data = await api<{ questions: string[] }>("/api/cv/build", {
         method: "POST",
-        json: { phase: "interview", seed, locale },
+        json: { phase: "interview", seed: { name: user.name, email: user.email, targetRole }, locale },
       });
-      setQuestions(data.questions);
+      const qs = data.questions.filter(Boolean).slice(0, 8);
+      setQuestions(qs);
+      setMessages([{ role: "adam", text: qs[0] ?? "Parlez-moi de votre expérience principale." }]);
+      setQuestionIndex(0);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -68,158 +81,137 @@ export default function BuilderPage() {
     }
   };
 
-  const buildCv = async () => {
-    setErr("");
-    setBusy(true);
-    try {
-      const answersMap: Record<string, string> = {};
-      if (answers.trim()) {
-        const lines = answers.split("\n").filter((l) => l.trim());
-        lines.forEach((l, i) => {
-          const idx = Math.min(i, questions.length - 1);
-          answersMap[`q${idx}`] = l;
-        });
-      }
-      answersMap["name"] = user.name || "";
-      answersMap["email"] = user.email;
-      answersMap["targetRole"] = targetRole;
+  const sendAnswer = () => {
+    if (!currentAnswer.trim()) return;
+    const nextIndex = questionIndex + 1;
+    const answerObj = { ...answers, [`q${questionIndex}`]: currentAnswer.trim() };
+    setAnswers(answerObj);
+    setMessages((prev) => [...prev, { role: "user", text: currentAnswer.trim() }]);
+    setCurrentAnswer("");
+    if (nextIndex < questions.length) {
+      setQuestionIndex(nextIndex);
+      setMessages((prev) => [...prev, { role: "adam", text: questions[nextIndex] }]);
+    } else {
+      buildCv(answerObj);
+    }
+  };
 
+  const buildCv = async (finalAnswers: Record<string, string>) => {
+    setBusy(true); setErr("");
+    try {
       const data = await api<BuildResult>("/api/cv/build", {
         method: "POST",
-        json: { phase: "build", answers: answersMap, targetRole, locale },
+        json: { phase: "build", answers: { ...finalAnswers, name: user.name ?? "", email: user.email, targetRole }, targetRole, locale },
       });
       setResult(data);
-      setPhase("result");
+      setMessages((prev) => [...prev, { role: "adam", text: "Votre CV canadien est prêt. Vous pouvez l'éditer et le télécharger ci-dessous." }]);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Erreur de generation");
+      setErr(e instanceof Error ? e.message : "Erreur de génération");
     } finally {
       setBusy(false);
     }
   };
 
-  const revalidate = async (cv: CvData) => {
-    const scores = await api<Scores>("/api/cv/validate", {
-      method: "POST",
-      json: cv,
-    });
-    setResult((r) => (r ? { ...r, cv, scores } : r));
+  const updateCv = (cv: CvData) => {
+    setResult((r) => (r ? { ...r, cv } : r));
+    setSaved(false);
+  };
+
+  const saveCv = async () => {
+    if (!result) return;
+    setBusy(true); setErr("");
+    try {
+      await api("/api/cv/mine", { method: "PUT", json: { cv: result.cv } });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Erreur de sauvegarde");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <button
-        onClick={() => router.push("/app")}
-        className="mb-4 text-sm text-slate-500 hover:text-adam"
-      >
-        &larr; Tableau de bord
-      </button>
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+      <main className="mx-auto max-w-5xl px-6 py-10">
+        <h1 className="mb-1 text-2xl font-bold text-adam-700">Créer mon CV canadien</h1>
+        <p className="mb-8 text-sm text-slate-500">Adam vous pose quelques questions, puis génère un CV conforme aux standards canadiens.</p>
 
-      <h1 className="mb-1 text-2xl font-bold text-adam">
-        Constructeur de CV canadien
-      </h1>
-      <p className="mb-8 text-sm text-slate-500">
-        Adam genere un CV conforme aux standards canadiens. Score de conformite
-        et ATS en temps reel.
-      </p>
-
-      {phase === "input" && (
-        <div className="space-y-6">
+        {!result && messages.length === 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Langue du CV
-                </label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Langue du CV</label>
                 <div className="flex gap-2">
                   {(["fr", "en"] as const).map((l) => (
-                    <button
-                      key={l}
-                      onClick={() => setLocale(l)}
-                      className={`flex-1 rounded-lg border py-2 text-sm font-medium ${
-                        locale === l
-                          ? "border-adam bg-adam/10 text-adam"
-                          : "border-slate-300 text-slate-500"
-                      }`}
-                    >
-                      {l === "fr" ? "Francais" : "Anglais"}
+                    <button key={l} onClick={() => setLocale(l)} className={`flex-1 rounded-lg border py-2 text-sm font-medium ${locale === l ? "border-adam-700 bg-adam-50 text-adam-700" : "border-slate-300 text-slate-500"}`}>
+                      {l === "fr" ? "Français" : "English"}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Poste vise (optionnel)
-                </label>
-                <input
-                  value={targetRole}
-                  onChange={(e) => setTargetRole(e.target.value)}
-                  placeholder="ex: Data Analyst"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-adam"
-                />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Poste visé</label>
+                <input value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="ex: Data Analyst" className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-adam-700" />
               </div>
             </div>
-
-            <button
-              onClick={runInterview}
-              disabled={busy}
-              className="rounded-lg border border-adam bg-adam/10 px-4 py-2 text-sm font-semibold text-adam disabled:opacity-50"
-            >
-              {busy ? "..." : "1. Generer les questions d'Adam"}
+            <button onClick={startInterview} disabled={busy} className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800 disabled:opacity-50">
+              {busy ? "..." : "Commencer l'interview avec Adam"}
             </button>
           </div>
+        )}
 
-          {questions.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
-                Repondez a Adam
-              </h2>
-              <ol className="mb-4 list-inside list-decimal space-y-1 text-sm text-slate-700">
-                {questions.map((q, i) => (
-                  <li key={i}>{q}</li>
-                ))}
-              </ol>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Vos reponses (une par ligne, dans l&apos;ordre)
-              </label>
-              <textarea
-                value={answers}
-                onChange={(e) => setAnswers(e.target.value)}
-                rows={8}
-                placeholder={`${questions[0] ?? ""}\n...`}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm outline-none focus:border-adam"
-              />
-              <button
-                onClick={buildCv}
-                disabled={busy}
-                className="mt-3 w-full rounded-lg bg-adam py-2.5 font-semibold text-white hover:bg-adam/90 disabled:opacity-50"
-              >
-                {busy ? "Generation en cours..." : "2. Generer mon CV canadien"}
-              </button>
+        {!result && messages.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 max-h-[420px] space-y-3 overflow-y-auto">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === "adam" ? "justify-start" : "justify-end"}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${m.role === "adam" ? "rounded-tl-none bg-slate-100 text-slate-800" : "rounded-tr-none bg-adam-700 text-white"}`}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+              {busy && <div className="text-sm text-slate-400">Adam écrit...</div>}
             </div>
-          )}
-
-          {err && (
-            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              {err}
-            </p>
-          )}
-        </div>
-      )}
-
-      {phase === "result" && result && (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div>
-            <CvPreview cv={result.cv} onChange={revalidate} />
-            <button
-              onClick={() => setPhase("input")}
-              className="mt-4 rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-            >
-              Refaire
-            </button>
+            {!busy && questionIndex < questions.length && (
+              <div className="flex gap-2">
+                <input
+                  value={currentAnswer}
+                  onChange={(e) => setCurrentAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendAnswer()}
+                  placeholder="Votre réponse..."
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-adam-700"
+                />
+                <button onClick={sendAnswer} className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800">Envoyer</button>
+              </div>
+            )}
           </div>
-          <CvScorecard scores={result.scores} />
-        </div>
-      )}
-    </main>
+        )}
+
+        {result && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div>
+              <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+                <ExportBar cv={result.cv} fileName={result.cv.contact?.name?.toLowerCase().replace(/\s+/g, "-") ?? "cv-adamcareers"} />
+                <div className="flex items-center gap-2">
+                  <button onClick={saveCv} disabled={busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">
+                    {busy ? "..." : saved ? "Enregistré ✓" : "Enregistrer"}
+                  </button>
+                  <Link href="/app/offers/new" className="rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white hover:bg-adam-800">
+                    Adapter à une offre
+                  </Link>
+                </div>
+              </div>
+              <CvEditor cv={result.cv} onChange={updateCv} />
+              {err && <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{err}</p>}
+            </div>
+            <div className="mt-6 lg:mt-0">
+              <CvScorecard scores={result.scores} />
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

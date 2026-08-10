@@ -9,6 +9,7 @@ const config: Config = {
     extend: {
       colors: {
         adam: {
+          DEFAULT: "#2c7488",
           50: "#f0f7f8",
           100: "#d9ebee",
           200: "#b3d7dd",

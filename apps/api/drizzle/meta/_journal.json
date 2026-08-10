@@ -8,6 +8,13 @@
       "when": 1785084162732,
       "tag": "0000_tired_mentallo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786171864827,
+      "tag": "0001_lush_elektra",
+      "breakpoints": true
     }
   ]
 }

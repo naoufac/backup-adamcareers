@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
-  title: "AdamCareers — Votre candidature canadienne, acceleree par l'IA",
+  title: "AdamCareers — Canadian Resume Builder & Cover Letter AI",
   description:
     "Adam adapte votre CV et votre lettre d'accompagnement a chaque offre d'emploi canadienne en 2 minutes. Constructeur de CV canadien, scores ATS en temps reel, bilingue FR/EN.",
   keywords: [

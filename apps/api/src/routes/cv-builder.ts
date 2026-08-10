@@ -8,17 +8,23 @@ import { validateCanadianCv } from "../lib/canadian-cv.js";
 import { normalizeCv } from "../lib/normalize-cv.js";
 import type { CvJson } from "../db/schema.js";
 
+// Education/experience sometimes come back as a single object from the LLM.
+// We accept either an object or an array and coerce to an array in normalizeCv.
+const arrayish = <T extends z.ZodTypeAny>(s: T) =>
+  z.union([z.array(s), z.record(z.any()).transform((o) => [o]).pipe(z.array(s)), z.null().transform(() => [] as z.infer<z.ZodArray<T>>)])
+    .optional();
+
 const cvSchema = z
   .object({
     contact: z.any().optional(),
     summary: z.string().optional(),
     coreCompetencies: z.array(z.string()).optional(),
-    experience: z.array(z.any()).optional(),
-    education: z.array(z.any()).optional(),
-    languages: z.array(z.any()).optional(),
-    certifications: z.array(z.string()).optional(),
-    volunteer: z.array(z.string()).optional(),
-    awards: z.array(z.string()).optional(),
+    experience: arrayish(z.any()),
+    education: arrayish(z.any()),
+    languages: arrayish(z.any()),
+    certifications: arrayish(z.string()),
+    volunteer: arrayish(z.string()),
+    awards: arrayish(z.string()),
   })
   .passthrough();
 

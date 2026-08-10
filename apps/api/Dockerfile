@@ -14,14 +14,26 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/api/tsconfig.json apps/api/tsconfig.json
 COPY apps/api/src apps/api/src
 COPY apps/api/drizzle.config.ts apps/api/drizzle.config.ts
+COPY apps/api/drizzle apps/api/drizzle
 RUN pnpm install --filter @adamjobs/api...
 RUN pnpm --filter @adamjobs/api build
-# Generate the migration SQL from schema (so the image is self-contained):
-RUN pnpm --filter @adamjobs/api db:generate
+# Install puppeteer chromium browser
+RUN cd /app && npx puppeteer browsers install chrome --path /app/.puppeteer
 
 FROM node:22-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
+# Install chromium runtime deps for puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+# Tell puppeteer to use system chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist

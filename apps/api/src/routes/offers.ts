@@ -213,6 +213,31 @@ export async function registerOfferRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // GET /api/applications/:id
+  app.get("/applications/:id", async (req, reply) => {
+    const me = await requireUser(req);
+    const { id } = req.params as { id: string };
+    const rows = await db
+      .select({
+        id: schema.applications.id,
+        userId: schema.applications.userId,
+        status: schema.applications.status,
+        coverLetter: schema.applications.coverLetter,
+        cvVariantJson: schema.applications.cvVariantJson,
+        offer: {
+          id: schema.offers.id,
+          parsedJson: schema.offers.parsedJson,
+        },
+      })
+      .from(schema.applications)
+      .innerJoin(schema.offers, eq(schema.applications.offerId, schema.offers.id))
+      .where(eq(schema.applications.id, id))
+      .limit(1);
+    const application = rows[0];
+    if (!application || application.userId !== me.id) return reply.code(404).send({ error: "Application not found" });
+    return { application };
+  });
+
   // POST /api/applications/:id/accept  -> apply accepted changes, finalize
   app.post("/applications/:id/accept", async (req, reply) => {
     const me = await requireUser(req);
