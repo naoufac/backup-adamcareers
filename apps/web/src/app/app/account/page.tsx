@@ -7,11 +7,12 @@ import { AppHeader } from "@/components/app-header";
 import { api } from "@/lib/api";
 
 export default function AccountPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const router = useRouter();
   const [name, setName] = useState("");
   const [locale, setLocale] = useState<"fr" | "en">("fr");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
@@ -29,13 +30,17 @@ export default function AccountPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErr(""); setOk(""); setBusy(true);
+    setErr(""); setOk("");
+    if (password && password !== confirm) { setErr("Les mots de passe ne correspondent pas."); return; }
+    if (password && password.length < 8) { setErr("Le mot de passe doit faire au moins 8 caractères."); return; }
+    setBusy(true);
     const json: Record<string, string> = { name, locale };
     if (password) json.password = password;
     try {
       await api("/api/me/profile", { method: "POST", json });
+      await refresh();
       setOk("Compte mis à jour ✓");
-      setPassword("");
+      setPassword(""); setConfirm("");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -45,9 +50,16 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-slate-400">Chargement...</div>
-      </main>
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader />
+        <main className="mx-auto max-w-2xl px-6 py-10">
+          <div className="animate-pulse space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="h-8 w-48 rounded bg-slate-200" />
+            <div className="h-4 w-full rounded bg-slate-100" />
+            <div className="h-4 w-2/3 rounded bg-slate-100" />
+          </div>
+        </main>
+      </div>
     );
   }
   if (!user) return null;
@@ -83,13 +95,26 @@ export default function AccountPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Nouveau mot de passe</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Laisser vide pour ne pas changer" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-adam-700" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Confirmer le mot de passe</label>
+            <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Laisser vide pour ne pas changer" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-adam-700" />
             {password && password.length < 8 && <p className="mt-1 text-xs text-red-600">Minimum 8 caractères.</p>}
+            {password && confirm && password !== confirm && <p className="mt-1 text-xs text-red-600">Les mots de passe ne correspondent pas.</p>}
           </div>
 
-          <button type="submit" disabled={busy || (password.length > 0 && password.length < 8)} className="w-full rounded-lg bg-adam-700 py-2.5 font-semibold text-white hover:bg-adam-800 disabled:opacity-50">
+          <button type="submit" disabled={busy || (password.length > 0 && (password.length < 8 || password !== confirm))} className="w-full rounded-lg bg-adam-700 py-2.5 font-semibold text-white hover:bg-adam-800 disabled:opacity-50">
             {busy ? "..." : "Enregistrer les modifications"}
           </button>
         </form>
+
+        <div className="mt-8 rounded-xl border border-red-100 bg-red-50/50 p-6">
+          <h2 className="text-sm font-semibold text-red-800">Zone de danger</h2>
+          <p className="mt-1 text-sm text-red-600/80">Supprimer votre compte efface définitivement vos CV, offres et candidatures. Cette action est irréversible.</p>
+          <button type="button" disabled className="mt-4 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50" title="À activer avec un second facteur de confirmation">
+            Supprimer mon compte (contactez-nous)
+          </button>
+        </div>
       </main>
     </div>
   );

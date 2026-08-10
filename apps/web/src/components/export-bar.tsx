@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
+import { useAppConfig } from "@/lib/app-config";
 
 interface ExportBarProps {
   applicationId?: string;
@@ -17,6 +18,7 @@ export function ExportBar({ applicationId, cv, coverLetter, fileName, onExport }
   const [paying, setPaying] = useState(false);
   const [toast, setToast] = useState("");
   const [paid, setPaid] = useState(false);
+  const config = useAppConfig();
 
   const triggerDownload = (blob: Blob, name: string, ext: string) => {
     const url = URL.createObjectURL(blob);
@@ -148,26 +150,33 @@ export function ExportBar({ applicationId, cv, coverLetter, fileName, onExport }
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-slate-900">Vous avez utilisé vos 4 exports gratuits</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Débloquez les exports illimités pour 1$ USD par export. Paiement sécurisé via Stripe (intégration en cours).
+              Débloquez les exports illimités. Paiement sécurisé via Stripe.
             </p>
-            <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-              <span className="font-semibold">Total :</span> 1,00 $ US
-            </div>
-            <div className="mt-4 flex gap-3">
+            {config && (
+              <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                <span className="font-semibold">Total :</span> {(config.exportPrice / 100).toFixed(2)} {config.currency.toUpperCase()}
+              </div>
+            )}
+            <div className="mt-4 flex flex-col gap-3">
               <button
                 onClick={() => setShowPaywall(false)}
-                className="flex-1 rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
                 Annuler
               </button>
               <button
                 onClick={pay}
                 disabled={paying}
-                className="flex-1 rounded-lg bg-adam-700 py-2 text-sm font-semibold text-white transition hover:bg-adam-800 disabled:opacity-50"
+                className="rounded-lg bg-adam-700 py-2 text-sm font-semibold text-white transition hover:bg-adam-800 disabled:opacity-50"
               >
-                {paying ? "..." : "Payer 1$ et exporter"}
+                {paying ? "..." : config?.stripePublishableKey ? "Payer avec Stripe" : "Débloquer (mode test)"}
               </button>
             </div>
+            {!config?.stripePublishableKey && (
+              <p className="mt-3 text-xs text-amber-600">
+                Stripe n'est pas encore configuré. Le déblocage est simulé en développement.
+              </p>
+            )}
             {paid && <p className="mt-2 text-xs text-green-600">Paiement validé. Vous pouvez maintenant exporter.</p>}
           </div>
         </div>

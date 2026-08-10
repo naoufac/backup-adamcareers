@@ -66,7 +66,7 @@ export default function UploadPage() {
     setSaving(true); setErr("");
     try {
       await api("/api/cv/mine", { method: "PUT", json: { cv: result.cv } });
-      router.push("/app");
+      router.push("/app?uploaded=1");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur de sauvegarde");
     } finally {
@@ -83,7 +83,7 @@ export default function UploadPage() {
 
         {!result ? (
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <label className="mb-2 block text-sm font-medium text-slate-700">Fichier PDF, DOCX ou collez le texte</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Fichier PDF, DOCX, TXT, MD ou collez le texte</label>
             <input
               type="file"
               accept=".txt,.md,.pdf,.docx"
@@ -113,15 +113,15 @@ export default function UploadPage() {
               <h2 className="font-semibold text-green-800">CV analysé ✓</h2>
               <p className="text-sm text-green-700">Style détecté: {result.writingStyle.tone ?? "professionnel"}, {result.writingStyle.language === "fr" ? "français" : "anglais"}. Vérifiez et corrigez avant d'enregistrer.</p>
             </div>
-            <CvEditor cv={result.cv} />
+            <CvEditor cv={result.cv} onChange={(cv) => setResult({ ...result, cv })} />
             {err && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{err}</p>}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={saveAndContinue}
                 disabled={saving}
                 className="flex-1 rounded-lg bg-adam-700 py-2.5 font-semibold text-white hover:bg-adam-800 disabled:opacity-50"
               >
-                {saving ? "..." : "Enregistrer et continuer"}
+                {saving ? "..." : "Enregistrer mon CV"}
               </button>
               <button
                 onClick={() => setResult(null)}

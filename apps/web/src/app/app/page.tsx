@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/app-header";
 import { api } from "@/lib/api";
@@ -35,9 +35,10 @@ interface AppSummary {
   createdAt: string;
 }
 
-export default function AppHome() {
+function AppHomeContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [usage, setUsage] = useState<Usage | null>(null);
   const [cv, setCv] = useState<CvData | null>(null);
   const [offers, setOffers] = useState<OfferSummary[]>([]);
@@ -101,6 +102,12 @@ export default function AppHome() {
               </div>
             </div>
             {!usage.paid && remaining === 0 && <span className="rounded-lg bg-adam-accent/10 px-3 py-1 text-xs font-semibold text-adam-accent">$1/export ensuite</span>}
+          </div>
+        )}
+
+        {searchParams.get("uploaded") && !err && (
+          <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            CV enregistré. Vous pouvez maintenant <Link href="/app/offers/new" className="font-semibold underline">adapter votre CV à une offre</Link>.
           </div>
         )}
 
@@ -191,5 +198,20 @@ export default function AppHome() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AppHome() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader />
+        <main className="mx-auto max-w-5xl px-6 py-10">
+          <div className="animate-pulse text-slate-400">Chargement...</div>
+        </main>
+      </div>
+    }>
+      <AppHomeContent />
+    </Suspense>
   );
 }

@@ -8,6 +8,15 @@ import { requireUser, Unauthorized } from "./auth.js";
 const FREE_EXPORTS_TOTAL = 4;
 
 export default async function meRoutes(app: FastifyInstance): Promise<void> {
+  // Public config: what payment provider is enabled
+  app.get("/me/config", async () => {
+    return {
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? null,
+      exportPrice: process.env.EXPORT_PRICE_CENTS ?? 100, // $1.00 default
+      currency: process.env.PAYMENT_CURRENCY ?? "usd",
+    };
+  });
+
   app.get("/me", async (req) => {
     const claims = await readRequestSession(req);
     if (!claims) throw new Unauthorized();
