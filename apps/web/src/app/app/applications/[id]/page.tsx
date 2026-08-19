@@ -87,7 +87,7 @@ export default function ApplicationDetailPage() {
             </div>
 
             <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <ExportBar applicationId={app.id} cv={app.cvVariantJson} fileName={app.id} />
+              <ExportBar cv={app.cvVariantJson} fileName={app.id} />
             </div>
 
             {app.coverLetter && (

@@ -11,6 +11,7 @@ const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
   outputFileTracingRoot: projectRoot,
+  transpilePackages: ["@adamjobs/export-engine", "jspdf", "jspdf-autotable"],
 };
 
 export default nextConfig;

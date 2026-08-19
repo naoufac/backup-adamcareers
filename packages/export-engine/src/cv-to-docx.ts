@@ -6,13 +6,12 @@ import {
   HeadingLevel,
   AlignmentType,
 } from "docx";
-import type { CvJson } from "../db/schema.js";
+import type { CvJson } from "./types.js";
 
-export async function cvToDocx(cv: CvJson): Promise<Buffer> {
+export async function cvToDocx(cv: CvJson): Promise<Blob> {
   const children: Paragraph[] = [];
   const c = cv.contact ?? {};
 
-  // Header
   if (c.name) {
     children.push(
       new Paragraph({
@@ -34,7 +33,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     );
   }
 
-  // Summary
   if (cv.summary) {
     children.push(sectionTitle("Professional Summary"));
     children.push(
@@ -45,7 +43,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     );
   }
 
-  // Core Competencies
   if (cv.coreCompetencies && cv.coreCompetencies.length > 0) {
     children.push(sectionTitle("Core Competencies"));
     children.push(
@@ -56,7 +53,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     );
   }
 
-  // Experience
   if (cv.experience && cv.experience.length > 0) {
     children.push(sectionTitle("Professional Experience"));
     for (const e of cv.experience) {
@@ -94,7 +90,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     }
   }
 
-  // Education
   if (cv.education && cv.education.length > 0) {
     children.push(sectionTitle("Education"));
     for (const ed of cv.education) {
@@ -107,7 +102,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     children.push(new Paragraph({ children: [], spacing: { after: 100 } }));
   }
 
-  // Certifications
   if (cv.certifications && cv.certifications.length > 0) {
     children.push(sectionTitle("Certifications"));
     for (const cert of cv.certifications) {
@@ -121,7 +115,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     children.push(new Paragraph({ children: [], spacing: { after: 100 } }));
   }
 
-  // Languages
   if (cv.languages && cv.languages.length > 0) {
     children.push(sectionTitle("Languages"));
     const langText = cv.languages
@@ -135,7 +128,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     );
   }
 
-  // Volunteer
   if (cv.volunteer && cv.volunteer.length > 0) {
     children.push(sectionTitle("Volunteer Experience"));
     for (const v of cv.volunteer) {
@@ -149,7 +141,6 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
     children.push(new Paragraph({ children: [], spacing: { after: 100 } }));
   }
 
-  // Awards
   if (cv.awards && cv.awards.length > 0) {
     children.push(sectionTitle("Awards"));
     for (const a of cv.awards) {
@@ -168,60 +159,8 @@ export async function cvToDocx(cv: CvJson): Promise<Buffer> {
         properties: {
           page: {
             margin: {
-              top: 720,  // 0.5 inch in twips
+              top: 720,
               bottom: 720,
-              left: 1080, // 0.75 inch
-              right: 1080,
-            },
-          },
-        },
-        children,
-      },
-    ],
-  });
-
-  return Packer.toBuffer(doc);
-}
-
-export async function coverLetterToDocx(letter: string, cv: CvJson): Promise<Buffer> {
-  const children: Paragraph[] = [];
-  const c = cv.contact ?? {};
-
-  if (c.name) {
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: c.name, bold: true, size: 28, color: "0F4C5C" })],
-      }),
-    );
-  }
-  const contactParts = [c.email, c.phone, c.location].filter((x): x is string => Boolean(x));
-  if (contactParts.length > 0) {
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: contactParts.join(" | "), size: 20, color: "555555" })],
-        spacing: { after: 300 },
-      }),
-    );
-  }
-
-  const paragraphs = letter.split("\n").filter((p) => p.trim());
-  for (const p of paragraphs) {
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: p, size: 22 })],
-        spacing: { after: 160 },
-      }),
-    );
-  }
-
-  const doc = new Document({
-    sections: [
-      {
-        properties: {
-          page: {
-            margin: {
-              top: 1080,  // 0.75 inch
-              bottom: 1080,
               left: 1080,
               right: 1080,
             },
@@ -232,7 +171,7 @@ export async function coverLetterToDocx(letter: string, cv: CvJson): Promise<Buf
     ],
   });
 
-  return Packer.toBuffer(doc);
+  return Packer.toBlob(doc);
 }
 
 function sectionTitle(text: string): Paragraph {

@@ -1,8 +1,5 @@
-import type { CvJson } from "../db/schema.js";
+import type { CvJson } from "./types.js";
 
-// Renders a CvJson into a clean, ATS-friendly plain-text resume (Canadian
-// format: Letter paper, no graphics, standard sections). Used for the TXT
-// export (the most ATS-safe format) and as a fallback.
 export function cvToText(cv: CvJson): string {
   const lines: string[] = [];
   const c = cv.contact ?? {};
@@ -69,9 +66,4 @@ export function cvToText(cv: CvJson): string {
   }
 
   return lines.join("\n").trim() + "\n";
-}
-
-// Renders the cover letter into clean plain text.
-export function coverLetterToText(letter: string): string {
-  return letter.trim() + "\n";
 }

@@ -3,16 +3,24 @@
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
 import { useAppConfig } from "@/lib/app-config";
+import {
+  cvToText,
+  coverLetterToText,
+  cvToDocx,
+  coverLetterToDocx,
+  cvToPdf,
+  coverLetterToPdf,
+  type CvJson,
+} from "@adamjobs/export-engine";
 
 interface ExportBarProps {
-  applicationId?: string;
-  cv?: unknown;
+  cv?: CvJson;
   coverLetter?: string;
   fileName?: string;
   onExport?: (kind: "cv" | "cover-letter", format: "txt" | "pdf" | "docx") => void;
 }
 
-export function ExportBar({ applicationId, cv, coverLetter, fileName, onExport }: ExportBarProps) {
+export function ExportBar({ cv, coverLetter, fileName, onExport }: ExportBarProps) {
   const [busy, setBusy] = useState<null | { kind: string; format: string }>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -33,31 +41,48 @@ export function ExportBar({ applicationId, cv, coverLetter, fileName, onExport }
     setTimeout(() => setToast(""), 2500);
   };
 
+  const checkEntitlement = async (): Promise<{ allowed: boolean; paid: boolean }> => {
+    const res = await fetch(`${API_BASE}/api/export/allow`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    if (res.status === 402) return { allowed: false, paid: false };
+    if (!res.ok) throw new Error(`Entitlement check failed: ${res.status}`);
+    return res.json() as Promise<{ allowed: boolean; paid: boolean }>;
+  };
+
+  const generateBlob = async (
+    kind: "cv" | "cover-letter",
+    format: "txt" | "pdf" | "docx",
+  ): Promise<Blob> => {
+    const effectiveCv = cv ?? {};
+    const effectiveLetter = coverLetter ?? "";
+
+    if (kind === "cv") {
+      if (format === "txt") return new Blob([cvToText(effectiveCv)], { type: "text/plain;charset=utf-8" });
+      if (format === "docx") return cvToDocx(effectiveCv);
+      return cvToPdf(effectiveCv);
+    }
+
+    // cover-letter
+    if (format === "txt") return new Blob([coverLetterToText(effectiveLetter)], { type: "text/plain;charset=utf-8" });
+    if (format === "docx") return coverLetterToDocx(effectiveLetter, effectiveCv);
+    return coverLetterToPdf(effectiveLetter, effectiveCv);
+  };
+
   const doExport = async (kind: "cv" | "cover-letter", format: "txt" | "pdf" | "docx") => {
     if (busy) return;
     setBusy({ kind, format });
     try {
-      const payload: Record<string, unknown> = {};
-      if (applicationId) payload.applicationId = applicationId;
-      if (cv) payload.cv = cv;
-      if (coverLetter) payload.coverLetter = coverLetter;
-
-      const res = await fetch(`${API_BASE}/api/export/${kind}/${format}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
-
-      if (res.status === 402) {
+      const gate = await checkEntitlement();
+      if (!gate.allowed) {
         setShowPaywall(true);
         setBusy(null);
         return;
       }
 
-      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-
-      const blob = await res.blob();
+      const blob = await generateBlob(kind, format);
       const base = fileName ?? (kind === "cv" ? "cv-adamcareers" : "lettre-adamcareers");
       triggerDownload(blob, base, format);
       onExport?.(kind, format);

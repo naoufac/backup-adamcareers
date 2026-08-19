@@ -80,11 +80,50 @@ pnpm gate      # = pnpm -r run typecheck && pnpm -r run build
 - A funded Z.AI key (GLM-5.2, `coding/paas/v4`) must go in `.env` for M2+.
 - Domain DNS zones (user-managed) before public TLS via Caddy.
 
+## Component: export-engine
+
+Location: `packages/export-engine/`
+
+The first component extracted under the workspace small-components standard.
+
+### What it does
+
+Generates CV and cover-letter exports in four formats:
+
+- **TXT** — plain text, most ATS-safe
+- **HTML** — styled preview / fallback
+- **DOCX** — Word document via `docx` (browser-side `Packer.toBlob`)
+- **PDF** — text-selectable Letter-size PDF via `jspdf`
+
+### Why browser-side
+
+Export generation is pure compute over data the UI already owns. Moving it to the browser:
+
+- Removes heavy server dependencies (Puppeteer, headless Chromium).
+- Scales with users, not with server CPU.
+- Keeps the server small: it only enforces the export entitlement gate and decrements usage.
+
+### Contract
+
+- UI calls `POST /api/export/allow` before generating.
+- Server returns `{ allowed: true, paid }` and increments `freeExportsUsed`, or returns `402`.
+- If allowed, UI calls `cvToText`, `cvToHtml`, `cvToDocx`, `cvToPdf`, `coverLetterToText`, `coverLetterToHtml`, `coverLetterToDocx`, or `coverLetterToPdf` from `@adamjobs/export-engine` and triggers the download.
+
+### Gate
+
+```bash
+pnpm --filter @adamjobs/export-engine run typecheck
+pnpm --filter @adamjobs/export-engine run build
+pnpm --filter @adamjobs/export-engine run test
+```
+
 ## Layout
 
 ```
 apps/api/   Fastify API  (src/server.ts, /healthz)
 apps/web/   Next.js web  (src/app)
+packages/   Shared, independently versioned components
+  export-engine/   Browser-side document generation
 docker-compose.yml        postgres + redis + api + web
 Caddyfile.example         edge config (sslip fallbacks)
 .env.example              all config knobs (no secrets committed)

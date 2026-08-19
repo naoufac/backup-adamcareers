@@ -127,7 +127,6 @@ export default function OfferDetailPage() {
           <div className="space-y-6">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <ExportBar
-                applicationId={adapt.applicationId}
                 cv={adapt.variant}
                 coverLetter={coverLetter}
                 fileName={((adapt.variant.contact as any)?.name?.toLowerCase().replace(/\s+/g, "-") as string) ?? "candidature-adamcareers"}

@@ -7,7 +7,7 @@ import meRoutes from "./routes/me.js";
 import { registerOnboardingRoutes } from "./routes/onboarding.js";
 import { registerCvBuilderRoutes } from "./routes/cv-builder.js";
 import { registerOfferRoutes } from "./routes/offers.js";
-import { registerExportRoutes } from "./routes/export.js";
+import { registerExportAllowRoutes } from "./routes/export-allow.js";
 import { registerJobRoutes } from "./routes/jobs.js";
 
 const PORT = Number(process.env.API_PORT ?? 8781);
@@ -42,7 +42,7 @@ await app.register(meRoutes, { prefix: "/api" });
 await app.register(registerOnboardingRoutes, { prefix: "/api" });
 await app.register(registerCvBuilderRoutes, { prefix: "/api" });
 await app.register(registerOfferRoutes, { prefix: "/api" });
-await app.register(registerExportRoutes, { prefix: "/api" });
+await app.register(registerExportAllowRoutes, { prefix: "/api" });
 await app.register(registerJobRoutes, { prefix: "/api" });
 
 app.setErrorHandler((err, _req, reply) => {
