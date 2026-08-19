@@ -1,4 +1,4 @@
-# ADAMJOBS runtime stack. Web on 8780, API on 8781, Postgres on 127.0.0.1:5433.
+# ADAMJOBS runtime stack. Web on 8780, API gateway on 8781, services on 8782-8785, Postgres on 127.0.0.1:5433.
 # Both app services read .env from the project root via env_file.
 services:
   postgres:
@@ -25,6 +25,82 @@ services:
     volumes:
       - adam_redis:/data
 
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_PORT: 8782
+    ports:
+      - "127.0.0.1:8782:8782"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  profiles:
+    build:
+      context: .
+      dockerfile: services/profiles/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: ${REDIS_URL}
+      PROFILES_PORT: 8783
+    ports:
+      - "127.0.0.1:8783:8783"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  billing:
+    build:
+      context: .
+      dockerfile: services/billing/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: ${REDIS_URL}
+      BILLING_PORT: 8784
+    ports:
+      - "127.0.0.1:8784:8784"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  inference-gateway:
+    build:
+      context: .
+      dockerfile: services/inference-gateway/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: ${REDIS_URL}
+      INFERENCE_PORT: 8785
+    ports:
+      - "127.0.0.1:8785:8785"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   api:
     build:
       context: .
@@ -34,6 +110,11 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       # Override to use the internal compose hostname (not the localhost dev URL):
+      AUTH_SERVICE_URL: http://auth:8782
+      PROFILES_SERVICE_URL: http://profiles:8783
+      BILLING_SERVICE_URL: http://billing:8784
+      INFERENCE_SERVICE_URL: http://inference-gateway:8785
+      USE_SERVICE_PROXY: "true"
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: ${REDIS_URL}
     ports:
@@ -42,6 +123,14 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_started
+      auth:
+        condition: service_started
+      profiles:
+        condition: service_started
+      billing:
+        condition: service_started
+      inference-gateway:
         condition: service_started
 
   web:

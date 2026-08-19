@@ -113,6 +113,7 @@ export const experiences = pgTable("experiences", {
   bullets: jsonb("bullets").$type<string[]>().notNull().default([]),
   variants: jsonb("variants").$type<BulletVariant[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const offers = pgTable("offers", {

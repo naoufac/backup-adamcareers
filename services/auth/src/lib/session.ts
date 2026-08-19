@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyReply } from "fastify";
 
 const COOKIE = process.env.AUTH_COOKIE_NAME ?? "adam_session";
 const isProd = process.env.NODE_ENV === "production";
