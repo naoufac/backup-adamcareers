@@ -5,7 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { requireUser } from "./auth.js";
 import { chatJson } from "../lib/llm.js";
 import { normalizeCv, validateCanadianCv } from "@adamjobs/cv-engine";
-import { diffCv, applyChanges, type CvChange } from "../lib/diff-cv.js";
+import { applyChanges, diffCv, type CvChange } from "@adamjobs/offer-engine";
 import type { OfferParsed, CompanyResearch } from "../db/schema.js";
 
 const offerSchema = z.object({
@@ -19,8 +19,6 @@ const offerSchema = z.object({
   language: z.enum(["fr", "en"]).optional(),
   salary: z.string().nullable().optional(),
 }).passthrough();
-
-const parseOfferSystem = `You are Adam, an expert at reading Canadian job offers. Parse the offer text and return ONLY JSON: {"title","company","location","workMode","mustHaveSkills":[string],"niceToHaveSkills":[string],"responsibilities":[string],"language":"fr"|"en","salary"}. Extract the real required skills, not generic fluff. Detect the dominant language of the offer. null for unknown fields.`;
 
 const researchSystem = `You are Adam, researching a Canadian employer to help tailor a candidate's application. Return ONLY JSON: {"name","sector","size","mission","values":[string],"notes"}. Use your knowledge. If you don't know the company, say so honestly in "notes" and provide nulls. Do not fabricate specifics.`;
 
@@ -39,30 +37,21 @@ Return ONLY JSON: {"cv": <full CvJson>, "coverLetter": string, "notes": string}.
 The coverLetter must follow Canadian business-letter format, addressed to the hiring manager, 3 paragraphs, in the offer's language.`;
 
 export async function registerOfferRoutes(app: FastifyInstance): Promise<void> {
-  // POST /api/offers  -> create + parse an offer from pasted text
+  // POST /api/offers  -> persist an already-parsed offer from the UI
   app.post("/offers", async (req, reply) => {
     const me = await requireUser(req);
-    const body = z.object({ text: z.string().min(50).max(20000) }).safeParse(req.body);
+    const body = z.object({
+      raw: z.string().min(50).max(20000),
+      parsed: offerSchema,
+    }).safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
-
-    const parsed = await chatJson(
-      [
-        { role: "system", content: parseOfferSystem },
-        { role: "user", content: `OFFER TEXT:\n"""\n${body.data.text}\n"""` },
-      ],
-      offerSchema,
-      { maxTokens: 3000, temperature: 0.2 },
-    ).catch((e) => {
-      req.log.error({ err: String(e) }, "offer parse failed");
-      throw { statusCode: 502, message: "Offer parsing failed; try again" };
-    });
 
     const [offer] = await db
       .insert(schema.offers)
       .values({
         userId: me.id,
-        raw: body.data.text,
-        parsedJson: parsed as OfferParsed,
+        raw: body.data.raw,
+        parsedJson: body.data.parsed as OfferParsed,
       })
       .returning({ id: schema.offers.id, parsedJson: schema.offers.parsedJson });
 

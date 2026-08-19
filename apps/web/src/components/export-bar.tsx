@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { API_BASE } from "@/lib/api";
 import { useAppConfig } from "@/lib/app-config";
+import { Button, Card } from "@adamjobs/ui-kit";
 import {
   cvToText,
   coverLetterToText,
@@ -114,52 +115,52 @@ export function ExportBar({ cv, coverLetter, fileName, onExport }: ExportBarProp
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-slate-700">Télécharger :</span>
 
-        <button
+        <Button
           onClick={() => doExport("cv", "pdf")}
           disabled={!!busy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-adam-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-adam-800 disabled:opacity-50"
+          variant="primary"
         >
           {isBusy("cv", "pdf") ? "..." : "CV PDF"}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => doExport("cv", "docx")}
           disabled={!!busy}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          variant="secondary"
         >
           DOCX
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => doExport("cv", "txt")}
           disabled={!!busy}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          variant="secondary"
         >
           TXT
-        </button>
+        </Button>
 
         {coverLetter && (
           <>
             <span className="mx-1 hidden h-4 w-px bg-slate-300 sm:inline-block" />
-            <button
+            <Button
               onClick={() => doExport("cover-letter", "pdf")}
               disabled={!!busy}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-adam-700/90 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-adam-800 disabled:opacity-50"
+              variant="primary"
             >
               {isBusy("cover-letter", "pdf") ? "..." : "Lettre PDF"}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => doExport("cover-letter", "docx")}
               disabled={!!busy}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              variant="secondary"
             >
               DOCX
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => doExport("cover-letter", "txt")}
               disabled={!!busy}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              variant="secondary"
             >
               TXT
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -172,7 +173,7 @@ export function ExportBar({ cv, coverLetter, fileName, onExport }: ExportBarProp
 
       {showPaywall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+          <Card className="w-full max-w-sm rounded-2xl p-6 shadow-xl">
             <h3 className="text-lg font-bold text-slate-900">Vous avez utilisé vos 4 exports gratuits</h3>
             <p className="mt-2 text-sm text-slate-600">
               Débloquez les exports illimités. Paiement sécurisé via Stripe.
@@ -183,19 +184,12 @@ export function ExportBar({ cv, coverLetter, fileName, onExport }: ExportBarProp
               </div>
             )}
             <div className="mt-4 flex flex-col gap-3">
-              <button
-                onClick={() => setShowPaywall(false)}
-                className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
+              <Button onClick={() => setShowPaywall(false)} variant="secondary">
                 Annuler
-              </button>
-              <button
-                onClick={pay}
-                disabled={paying}
-                className="rounded-lg bg-adam-700 py-2 text-sm font-semibold text-white transition hover:bg-adam-800 disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={pay} disabled={paying} variant="primary">
                 {paying ? "..." : config?.stripePublishableKey ? "Payer avec Stripe" : "Débloquer (mode test)"}
-              </button>
+              </Button>
             </div>
             {!config?.stripePublishableKey && (
               <p className="mt-3 text-xs text-amber-600">
@@ -203,7 +197,7 @@ export function ExportBar({ cv, coverLetter, fileName, onExport }: ExportBarProp
               </p>
             )}
             {paid && <p className="mt-2 text-xs text-green-600">Paiement validé. Vous pouvez maintenant exporter.</p>}
-          </div>
+          </Card>
         </div>
       )}
     </div>

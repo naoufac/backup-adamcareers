@@ -1,11 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Logo } from "@adamjobs/ui-kit";
 import { useAuth } from "@/lib/auth-context";
-import { Logo } from "./logo";
-import { linksForMode, label, type NavMode, ACCOUNT_LINKS } from "@/lib/nav";
+
+export type NavMode = "app" | "marketing";
+
+interface NavLink {
+  href: string;
+  label: string;
+  primary?: boolean;
+}
+
+const APP_LINKS: NavLink[] = [
+  { href: "/app", label: "Tableau de bord" },
+  { href: "/app/builder", label: "Construire" },
+  { href: "/app/offers/new", label: "Nouvelle offre" },
+];
+
+const MARKETING_LINKS: NavLink[] = [
+  { href: "/#features", label: "Fonctionnalités" },
+  { href: "/#pricing", label: "Tarifs" },
+];
 
 interface SiteNavProps {
   mode: NavMode;
@@ -18,12 +36,13 @@ export function SiteNav({ mode }: SiteNavProps) {
   const locale: "fr" | "en" = (user?.locale as "fr" | "en") ?? "fr";
   const [open, setOpen] = useState(false);
 
+  const links = mode === "app" ? APP_LINKS : MARKETING_LINKS;
+
   const doLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     router.push("/auth");
   };
 
-  const links = linksForMode(mode).filter((l) => !l.external);
   const isActive = (href: string) => {
     if (href === "/app") return pathname === href;
     if (href === "/app/account") return pathname.startsWith("/app/account");
@@ -33,9 +52,7 @@ export function SiteNav({ mode }: SiteNavProps) {
 
   const navLinkClass = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-      active
-        ? "bg-adam-50 text-adam-700"
-        : "text-slate-600 hover:bg-slate-50 hover:text-adam-700"
+      active ? "bg-adam-50 text-adam-700" : "text-slate-600 hover:bg-slate-50 hover:text-adam-700"
     }`;
 
   return (
@@ -45,16 +62,11 @@ export function SiteNav({ mode }: SiteNavProps) {
           <Logo />
         </Link>
 
-        {/* Desktop links */}
         <div className="hidden items-center gap-1 sm:flex">
           {links.map((l) =>
             l.primary ? null : (
-              <Link
-                key={l.href + l.label.fr}
-                href={l.href}
-                className={navLinkClass(isActive(l.href))}
-              >
-                {label(l, locale)}
+              <Link key={l.href + l.label} href={l.href} className={navLinkClass(isActive(l.href))}>
+                {l.label}
               </Link>
             )
           )}
@@ -63,12 +75,11 @@ export function SiteNav({ mode }: SiteNavProps) {
             <>
               <span className="mx-1 h-4 w-px bg-slate-200" />
               <Link href="/app/account" className={navLinkClass(isActive("/app/account"))}>
-                {label(ACCOUNT_LINKS[0], locale)}
+                {locale === "en" ? "Account" : "Compte"}
               </Link>
               <button
                 onClick={doLogout}
                 className="ml-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-red-600"
-                title={locale === "en" ? "Log out" : "Déconnexion"}
               >
                 {locale === "en" ? "Logout" : "Déconnexion"}
               </button>
@@ -88,7 +99,6 @@ export function SiteNav({ mode }: SiteNavProps) {
           )}
         </div>
 
-        {/* Mobile hamburger */}
         <button
           className="rounded-lg p-2 text-slate-600 hover:bg-slate-50 sm:hidden"
           onClick={() => setOpen((v) => !v)}
@@ -104,21 +114,20 @@ export function SiteNav({ mode }: SiteNavProps) {
         </button>
       </div>
 
-      {/* Mobile drawer */}
       {open && (
         <div className="border-t border-slate-200 bg-white px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) =>
               l.primary ? null : (
                 <Link
-                  key={l.href + l.label.fr}
+                  key={l.href + l.label}
                   href={l.href}
                   onClick={() => setOpen(false)}
                   className={`rounded-lg px-3 py-2 text-sm font-medium ${
                     isActive(l.href) ? "bg-adam-50 text-adam-700" : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {label(l, locale)}
+                  {l.label}
                 </Link>
               )
             )}
@@ -131,7 +140,7 @@ export function SiteNav({ mode }: SiteNavProps) {
                     isActive("/app/account") ? "bg-adam-50 text-adam-700" : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {label(ACCOUNT_LINKS[0], locale)}
+                  {locale === "en" ? "Account" : "Compte"}
                 </Link>
                 <button
                   onClick={() => {

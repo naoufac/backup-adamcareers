@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { MarketingNav } from "@/components/site-nav";
-import { Logo } from "@/components/logo";
+import { Logo } from "@adamjobs/ui-kit";
 
 export default function Home() {
   const { user, loading } = useAuth();

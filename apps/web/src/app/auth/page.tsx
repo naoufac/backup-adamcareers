@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-import { Logo } from "@/components/logo";
+import { Logo } from "@adamjobs/ui-kit";
 
 export default function AuthPage() {
   const { refresh } = useAuth();

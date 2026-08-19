@@ -14,6 +14,8 @@
   "dependencies": {
     "@adamjobs/cv-engine": "workspace:*",
     "@adamjobs/export-engine": "workspace:*",
+    "@adamjobs/offer-engine": "workspace:*",
+    "@adamjobs/ui-kit": "workspace:*",
     "mammoth": "^1.12.0",
     "next": "^15.1.3",
     "pdfjs-dist": "^6.1.200",

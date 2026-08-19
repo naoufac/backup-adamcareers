@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
+import { parseOffer } from "@adamjobs/offer-engine";
 
 export default function NewOfferPage() {
   const { user, loading } = useAuth();
@@ -27,7 +28,12 @@ export default function NewOfferPage() {
     if (text.trim().length < 50) { setErr("Collez au moins 50 caractères de l'offre."); return; }
     setErr(""); setBusy(true);
     try {
-      const data = await api<{ offer: { id: string } }>("/api/offers", { method: "POST", json: { text } });
+      // Parse in the browser; server only persists.
+      const parsed = parseOffer(text);
+      const data = await api<{ offer: { id: string } }>("/api/offers", {
+        method: "POST",
+        json: { raw: text, parsed },
+      });
       router.push(`/app/offers/${data.offer.id}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");

@@ -71,8 +71,8 @@ pnpm gate      # = pnpm -r run typecheck && pnpm -r run build
 | M3 | Fast Canadian-style CV builder (schema, templates, scorecard)     |        |
 | M4 | Adaptation loop (offer -> research -> highlighted diff keep/cancel)|       |
 | M5 | Canadian cover letter + export (PDF/DOCX)                         |        |
-| M6 | Daily job search (Job Bank GC + Adzuna CA) + dashboard            |        |
-| M7 | Preference-vector learning (no-LLM feedback loop)                 |        |
+| M6 | Daily job search (Job Bank GC + Adzuna CA) + dashboard           |        |
+| M7 | Preference-vector learning (no-LLM feedback loop)               |        |
 
 ### Prerequisites flagged for later milestones
 
@@ -121,20 +121,17 @@ pnpm --filter @adamjobs/export-engine run test
 
 Location: `packages/cv-engine/`
 
-### What it does
+Browser-side package for CV schema, normalization, and Canadian validation/scorecard.
 
-- **Normalization** — maps messy LLM output into a canonical `CvJson` shape.
-- **Validation** — checks Canadian resume rules and returns a live scorecard.
-- **Scorecard** — compliance score (errors/warnings) + ATS keyword score.
+### What it contains
+
+- `CvJson`, `CvExperienceEntry`, `CvEducationEntry` types
+- `normalizeCv(raw)` — coerce LLM output into a canonical CV shape
+- `validateCanadianCv(cv)` — returns `{ complianceScore, atsScore, violations[] }`
 
 ### Why browser-side
 
-CV validation is deterministic rule-based compute over data the UI owns. Running it in the browser gives instant feedback in the builder and scorecard without server round-trips.
-
-### Contract
-
-- Browser imports `normalizeCv`, `validateCanadianCv`, and the `CvJson` type from `@adamjobs/cv-engine`.
-- Server routes that still need normalization during transition can also import the same package.
+Validation and scoring are deterministic functions over CV data. No secrets, no heavy compute. Moving them to the browser keeps feedback instant and removes one more reason for the server to grow.
 
 ### Gate
 
@@ -144,13 +141,77 @@ pnpm --filter @adamjobs/cv-engine run build
 pnpm --filter @adamjobs/cv-engine run test
 ```
 
+## Component: offer-engine
+
+Location: `packages/offer-engine/`
+
+Browser-side package for job-offer parsing, skill matching, and CV adaptation diffing.
+
+### What it contains
+
+- `parseOffer(text)` — rule-based extractor for title, company, location, work mode, required/nice-to-have skills, responsibilities, language, and salary
+- `matchSkills(cv, offer)` — coverage score with evidence, missing skills, and suggestions
+- `diffCv(base, variant)` / `applyChanges(base, changes, acceptedIds)` — atomic reviewable adaptation diff
+
+### Why browser-side
+
+Offer parsing and skill matching are deterministic. Running them in the browser means the user sees feedback instantly and the server only persists the parsed result.
+
+### Gate
+
+```bash
+pnpm --filter @adamjobs/offer-engine run typecheck
+pnpm --filter @adamjobs/offer-engine run build
+pnpm --filter @adamjobs/offer-engine run test
+```
+
+## Component: ui-kit
+
+Location: `packages/ui-kit/`
+
+Shared presentational components and design tokens for the AdamCareers shell.
+
+### What it contains
+
+- `Logo`, `Button`, `Card`, `Spinner`, `Toast`
+- `useLocalStorage` hook
+- `ThemeProvider` + `useTheme`
+- Shared Tailwind config (`themeConfig`) and global styles
+
+### Why a separate package
+
+The UI shell should own only composition, not re-implement buttons and cards. A shared kit enforces one visual language and prevents duplication as more shells or pages are added.
+
+### How to import
+
+```tsx
+import { Logo, Button, Card, Spinner, Toast, useLocalStorage, ThemeProvider } from "@adamjobs/ui-kit";
+```
+
+Shared Tailwind theme:
+
+```ts
+import { themeConfig } from "@adamjobs/ui-kit/tailwind.config";
+```
+
+### Gate
+
+```bash
+pnpm --filter @adamjobs/ui-kit run typecheck
+pnpm --filter @adamjobs/ui-kit run build
+pnpm --filter @adamjobs/ui-kit run test
+```
+
 ## Layout
 
 ```
 apps/api/   Fastify API  (src/server.ts, /healthz)
 apps/web/   Next.js web  (src/app)
 packages/   Shared, independently versioned components
+  cv-engine/       Browser-side CV validation and normalization
   export-engine/   Browser-side document generation
+  offer-engine/    Browser-side offer parsing and adaptation diff
+  ui-kit/          Shared presentational components and styles
 docker-compose.yml        postgres + redis + api + web
 Caddyfile.example         edge config (sslip fallbacks)
 .env.example              all config knobs (no secrets committed)

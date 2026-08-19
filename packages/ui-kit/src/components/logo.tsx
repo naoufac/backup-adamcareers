@@ -2,7 +2,6 @@ export function Logo({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-adam-700 to-adam-500 shadow-sm">
-        {/* Stylized "A" with upward arrow = career growth */}
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
           <path
             d="M12 3L4 20h3.5L12 10l4.5 10H20L12 3z"

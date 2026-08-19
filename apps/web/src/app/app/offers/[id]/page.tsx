@@ -8,15 +8,13 @@ import { api } from "@/lib/api";
 import { CvEditor } from "@/components/cv-editor";
 import { ExportBar } from "@/components/export-bar";
 import { CvScorecard, type Scores } from "@/components/scorecard";
+import { matchSkills, type MatchResult, type OfferParsed } from "@adamjobs/offer-engine";
+import type { CvJson } from "@adamjobs/cv-engine";
 
 interface Offer {
   id: string;
   raw: string;
-  parsedJson: {
-    title?: string; company?: string; location?: string; workMode?: string;
-    mustHaveSkills?: string[]; niceToHaveSkills?: string[];
-    responsibilities?: string[]; language?: string; salary?: string;
-  };
+  parsedJson: OfferParsed;
   companyResearch?: { name?: string; sector?: string; size?: string; mission?: string; values?: string[]; notes?: string };
 }
 
@@ -35,6 +33,8 @@ export default function OfferDetailPage() {
   const router = useRouter();
   const params = new URL(window.location.href).pathname.split("/").pop() ?? "";
   const [offer, setOffer] = useState<Offer | null>(null);
+  const [masterCv, setMasterCv] = useState<CvJson | null>(null);
+  const [match, setMatch] = useState<MatchResult | null>(null);
   const [adapt, setAdapt] = useState<AdaptResult | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [busy, setBusy] = useState("");
@@ -49,7 +49,16 @@ export default function OfferDetailPage() {
     api<{ offer: Offer }>(`/api/offers/${params}`)
       .then((d) => setOffer(d.offer))
       .catch((e) => setErr(e.message));
+    api<{ cv: CvJson | null }>("/api/cv/mine")
+      .then((d) => setMasterCv(d.cv))
+      .catch(() => setMasterCv(null));
   }, [params]);
+
+  useEffect(() => {
+    if (offer && masterCv) {
+      setMatch(matchSkills(masterCv, offer.parsedJson));
+    }
+  }, [offer, masterCv]);
 
   if (loading || !offer) {
     return (
@@ -109,7 +118,31 @@ export default function OfferDetailPage() {
             <div className="mt-4">
               <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">Compétences requises</h3>
               <div className="flex flex-wrap gap-1.5">
-                {p.mustHaveSkills.map((s, i) => <span key={i} className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{s}</span>)}
+                {p.mustHaveSkills.map((s, i) => {
+                  const matched = match?.matchedMustHave.some((m) => m.skill.toLowerCase() === s.toLowerCase());
+                  return (
+                    <span key={i} className={`rounded-md px-2 py-0.5 text-xs font-medium ${matched ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                      {s}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {match && (
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-slate-50 p-3 text-center">
+                <div className="text-lg font-bold text-adam-700">{match.overallScore}</div>
+                <div className="text-xs text-slate-500">Match global</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3 text-center">
+                <div className="text-lg font-bold text-slate-700">{match.mustHaveScore}%</div>
+                <div className="text-xs text-slate-500">Requis</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3 text-center">
+                <div className="text-lg font-bold text-slate-500">{match.niceToHaveScore}%</div>
+                <div className="text-xs text-slate-500">Atouts</div>
               </div>
             </div>
           )}
