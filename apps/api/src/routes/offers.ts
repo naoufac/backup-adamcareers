@@ -4,7 +4,7 @@ import { db, schema } from "../db/client.js";
 import { eq, desc } from "drizzle-orm";
 import { requireUser } from "./auth.js";
 import { chatJson } from "../lib/llm.js";
-import { normalizeCv, validateCanadianCv } from "@adamjobs/cv-engine";
+import { normalizeCv, validateCanadianCv, type Scorecard } from "@adamjobs/cv-engine";
 import { applyChanges, diffCv, type CvChange } from "@adamjobs/offer-engine";
 import type { OfferParsed, CompanyResearch } from "../db/schema.js";
 
@@ -175,8 +175,20 @@ export async function registerOfferRoutes(app: FastifyInstance): Promise<void> {
     });
 
     const variantCv = normalizeCv(result.cv);
-    const changes = diffCv(baseCv, variantCv);
-    const scores = validateCanadianCv(variantCv);
+    let changes: CvChange[] = [];
+    let scores: Scorecard = { complianceScore: 0, atsScore: 0, violations: [] };
+    try {
+      changes = diffCv(baseCv, variantCv);
+    } catch (diffErr) {
+      req.log.error({ err: String(diffErr) }, "diffCv failed");
+      changes = [];
+    }
+    try {
+      scores = validateCanadianCv(variantCv);
+    } catch (scoreErr) {
+      req.log.error({ err: String(scoreErr) }, "validateCanadianCv failed");
+      scores = { complianceScore: 0, atsScore: 0, violations: [] };
+    }
 
     // Persist the application (draft) with the variant + cover letter
     const [application] = await db
