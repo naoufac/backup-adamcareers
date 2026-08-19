@@ -31,7 +31,7 @@ await app.register(cookie);
 
 app.get("/healthz", async () => ({
   status: "ok",
-  service: "adamjobs-api",
+  service: "adamjobs-api-gateway",
   time: new Date().toISOString(),
 }));
 
@@ -60,7 +60,7 @@ app.get("/api/_session", async (req) => {
 const start = async () => {
   try {
     await app.listen({ port: PORT, host: HOST });
-    app.log.info({ port: PORT, origins: allowedOrigins }, "api listening");
+    app.log.info({ port: PORT, origins: allowedOrigins }, "api gateway listening");
   } catch (err) {
     app.log.error(err);
     process.exit(1);
