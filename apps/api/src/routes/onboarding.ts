@@ -4,7 +4,7 @@ import { db, schema } from "../db/client.js";
 import { eq } from "drizzle-orm";
 import { requireUser } from "./auth.js";
 import { chatJson, chat } from "../lib/llm.js";
-import { normalizeCv } from "../lib/normalize-cv.js";
+import { normalizeCv } from "@adamjobs/cv-engine";
 
 const cvJsonSchema = z.object({
   contact: z.object({

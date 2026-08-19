@@ -4,10 +4,9 @@ import { db, schema } from "../db/client.js";
 import { eq, desc } from "drizzle-orm";
 import { requireUser } from "./auth.js";
 import { chatJson } from "../lib/llm.js";
-import { normalizeCv } from "../lib/normalize-cv.js";
-import { validateCanadianCv } from "../lib/canadian-cv.js";
+import { normalizeCv, validateCanadianCv } from "@adamjobs/cv-engine";
 import { diffCv, applyChanges, type CvChange } from "../lib/diff-cv.js";
-import type { CvJson, OfferParsed, CompanyResearch } from "../db/schema.js";
+import type { OfferParsed, CompanyResearch } from "../db/schema.js";
 
 const offerSchema = z.object({
   title: z.string().nullable().optional(),
@@ -186,7 +185,7 @@ export async function registerOfferRoutes(app: FastifyInstance): Promise<void> {
       throw { statusCode: 502, message: "Adaptation failed; try again" };
     });
 
-    const variantCv = normalizeCv(result.cv) as CvJson;
+    const variantCv = normalizeCv(result.cv);
     const changes = diffCv(baseCv, variantCv);
     const scores = validateCanadianCv(variantCv);
 

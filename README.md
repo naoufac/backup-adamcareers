@@ -117,6 +117,33 @@ pnpm --filter @adamjobs/export-engine run build
 pnpm --filter @adamjobs/export-engine run test
 ```
 
+## Component: cv-engine
+
+Location: `packages/cv-engine/`
+
+### What it does
+
+- **Normalization** — maps messy LLM output into a canonical `CvJson` shape.
+- **Validation** — checks Canadian resume rules and returns a live scorecard.
+- **Scorecard** — compliance score (errors/warnings) + ATS keyword score.
+
+### Why browser-side
+
+CV validation is deterministic rule-based compute over data the UI owns. Running it in the browser gives instant feedback in the builder and scorecard without server round-trips.
+
+### Contract
+
+- Browser imports `normalizeCv`, `validateCanadianCv`, and the `CvJson` type from `@adamjobs/cv-engine`.
+- Server routes that still need normalization during transition can also import the same package.
+
+### Gate
+
+```bash
+pnpm --filter @adamjobs/cv-engine run typecheck
+pnpm --filter @adamjobs/cv-engine run build
+pnpm --filter @adamjobs/cv-engine run test
+```
+
 ## Layout
 
 ```

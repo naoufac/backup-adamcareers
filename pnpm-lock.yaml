@@ -14,6 +14,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@adamjobs/cv-engine':
+        specifier: workspace:*
+        version: link:../../packages/cv-engine
       '@fastify/cookie':
         specifier: ^11.0.1
         version: 11.1.2
@@ -60,6 +63,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@adamjobs/cv-engine':
+        specifier: workspace:*
+        version: link:../../packages/cv-engine
       '@adamjobs/export-engine':
         specifier: workspace:*
         version: link:../../packages/export-engine
@@ -97,6 +103,18 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19(tsx@4.23.1)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/cv-engine:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3

@@ -1,12 +1,6 @@
-import type { CvJson } from "../db/schema.js";
+import type { CvJson, Scorecard, Violation } from "./types.js";
 
 // Canadian resume compliance rules. Pure logic, no LLM. Drives the live scorecard.
-
-export type Violation = {
-  id: string;
-  severity: "error" | "warning";
-  message: string;
-};
 
 const ACTION_VERBS = [
   "led","built","designed","developed","launched","drove","delivered","shipped",
@@ -22,11 +16,7 @@ const FORBIDDEN_PERSONAL = [
 
 const QUANT_HINT = /(\d+%|\$\s?\d|\d{2,}\+?|\b\d{2,}\s?(users|customers|clients|k|m|million|thousand|hours|weeks|months|years|people|reports|projects|stores|merchants))\b/i;
 
-export function validateCanadianCv(cv: CvJson): {
-  violations: Violation[];
-  complianceScore: number; // 0-100
-  atsScore: number; // 0-100
-} {
+export function validateCanadianCv(cv: CvJson): Scorecard {
   const v: Violation[] = [];
 
   // --- Forbidden personal info (Canadian compliance: errors) ---
@@ -76,7 +66,6 @@ export function validateCanadianCv(cv: CvJson): {
     bullets.forEach((b, i) => {
       const first = b.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "");
       if (first && !ACTION_VERBS.includes(first) && !ACTION_VERBS.includes(b.trim().toLowerCase().split(/\s+/)[0] ?? "")) {
-        // tolerate bullets that already start with a strong verb form
         const w = b.trim().split(/\s+/)[0] ?? "";
         if (!/[A-Z]/.test(w[0] ?? "") && !ACTION_VERBS.includes(first)) {
           v.push({ id: `exp:${e.company}:verb:${i}`, severity: "warning", message: `Bullet should start with a strong action verb: "${b.slice(0, 40)}...".` });
@@ -122,5 +111,3 @@ export function validateCanadianCv(cv: CvJson): {
 function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
-
-

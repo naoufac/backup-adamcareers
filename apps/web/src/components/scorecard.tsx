@@ -1,14 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
+import { validateCanadianCv, type Scorecard, type CvJson } from "@adamjobs/cv-engine";
+
 export interface Scores {
   violations: { id: string; severity: "error" | "warning"; message: string }[];
   complianceScore: number;
   atsScore: number;
 }
 
-export function CvScorecard({ scores }: { scores: Scores }) {
-  const errors = scores.violations.filter((v) => v.severity === "error");
-  const warnings = scores.violations.filter((v) => v.severity === "warning");
+export function CvScorecard({ scores, cv }: { scores?: Scores; cv?: CvJson }) {
+  const computed = useMemo<Scorecard>(() => {
+    if (scores) return scores as Scorecard;
+    return validateCanadianCv(cv ?? {});
+  }, [scores, cv]);
+  const errors = computed.violations.filter((v) => v.severity === "error");
+  const warnings = computed.violations.filter((v) => v.severity === "warning");
 
   return (
     <aside className="sticky top-6 space-y-4">
@@ -16,9 +23,9 @@ export function CvScorecard({ scores }: { scores: Scores }) {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
           Scores en temps reel
         </h3>
-        <Gauge label="Conformite canadienne" value={scores.complianceScore} />
+        <Gauge label="Conformite canadienne" value={computed.complianceScore} />
         <div className="mt-3">
-          <Gauge label="Score ATS" value={scores.atsScore} />
+          <Gauge label="Score ATS" value={computed.atsScore} />
         </div>
       </div>
 
@@ -26,7 +33,7 @@ export function CvScorecard({ scores }: { scores: Scores }) {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
           Points a ameliorer
         </h3>
-        {scores.violations.length === 0 ? (
+        {computed.violations.length === 0 ? (
           <p className="text-sm text-green-600">CV conforme. Aucun point blocant.</p>
         ) : (
           <ul className="space-y-2">

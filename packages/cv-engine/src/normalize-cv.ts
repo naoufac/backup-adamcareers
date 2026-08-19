@@ -1,4 +1,4 @@
-import type { CvJson } from "../db/schema.js";
+import type { CvJson } from "./types.js";
 
 // LLMs return slightly different key names for the same concept. This maps the
 // common variants onto the canonical CvJson shape so downstream code and the

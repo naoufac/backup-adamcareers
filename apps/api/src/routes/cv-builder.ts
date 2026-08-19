@@ -4,9 +4,7 @@ import { db, schema } from "../db/client.js";
 import { eq } from "drizzle-orm";
 import { requireUser } from "./auth.js";
 import { chatJson, chat } from "../lib/llm.js";
-import { validateCanadianCv } from "../lib/canadian-cv.js";
-import { normalizeCv } from "../lib/normalize-cv.js";
-import type { CvJson } from "../db/schema.js";
+import type { CvJson } from "@adamjobs/cv-engine";
 
 // Education/experience sometimes come back as a single object from the LLM.
 // We accept either an object or an array and coerce to an array in normalizeCv.
@@ -38,15 +36,6 @@ Canadian rules (hard):
 Return ONLY JSON: {"cv": <CvJson>, "questions": [string]}`;
 
 export async function registerCvBuilderRoutes(app: FastifyInstance): Promise<void> {
-  // POST /api/cv/validate  -> live scorecard (no LLM)
-  app.post("/cv/validate", async (req, reply) => {
-    await requireUser(req);
-    const body = cvSchema.safeParse(req.body);
-    if (!body.success) return reply.code(400).send({ error: body.error.flatten() });
-    const result = validateCanadianCv(body.data as CvJson);
-    return result;
-  });
-
   // POST /api/cv/build  -> guided interview first question OR full build from answers
   // Phase "interview": { phase: "interview", seed: {...minimal inputs} } -> { questions: string[] }
   // Phase "build":     { phase: "build", answers: {...}, targetRole?: string } -> { cv, questions, scores }
@@ -95,16 +84,13 @@ export async function registerCvBuilderRoutes(app: FastifyInstance): Promise<voi
       throw { statusCode: 502, message: "CV generation failed; try again" };
     });
 
-    const cv = normalizeCv(result.cv);
-    const scores = validateCanadianCv(cv);
-
-    // persist into master profile
+    // persist raw LLM output; browser normalizes and scores before display/save
     await db
       .update(schema.masterProfiles)
-      .set({ cvJson: cv, updatedAt: new Date() })
+      .set({ cvJson: result.cv as CvJson, updatedAt: new Date() })
       .where(eq(schema.masterProfiles.userId, me.id));
 
-    return { phase: "build", cv, questions: result.questions, scores };
+    return { phase: "build", cv: result.cv, questions: result.questions };
   });
 
   // GET /api/cv/mine -> the stored CV

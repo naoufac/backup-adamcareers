@@ -6,23 +6,14 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/site-nav";
 import { api } from "@/lib/api";
-import { CvScorecard, type Scores } from "@/components/scorecard";
+import { CvScorecard } from "@/components/scorecard";
 import { CvEditor } from "@/components/cv-editor";
 import { ExportBar } from "@/components/export-bar";
-
-interface CvData {
-  contact?: { name?: string; email?: string; phone?: string; location?: string };
-  summary?: string;
-  coreCompetencies?: string[];
-  experience?: { title?: string; company?: string; startDate?: string; endDate?: string; bullets?: string[] }[];
-  education?: { institution?: string; degree?: string; field?: string }[];
-  languages?: { name: string; level?: string }[];
-}
+import { normalizeCv, type CvJson } from "@adamjobs/cv-engine";
 
 interface BuildResult {
-  cv: CvData;
+  cv: CvJson;
   questions: string[];
-  scores: Scores;
 }
 
 interface Message {
@@ -82,10 +73,10 @@ export default function BuilderPage() {
         // ignore invalid localStorage
       }
     }
-    api<{ cv: CvData | null }>("/api/cv/mine")
+    api<{ cv: unknown | null }>("/api/cv/mine")
       .then((d) => {
         if (d.cv) {
-          setResult({ cv: d.cv, questions: [], scores: { violations: [], complianceScore: 0, atsScore: 0 } });
+          setResult({ cv: normalizeCv(d.cv), questions: [] });
         }
       })
       .catch(() => {});
@@ -175,11 +166,12 @@ export default function BuilderPage() {
   const buildCv = async (finalAnswers: Record<string, string>) => {
     setBusy(true); setErr("");
     try {
-      const data = await api<BuildResult>("/api/cv/build", {
+      const data = await api<{ cv: unknown; questions: string[] }>("/api/cv/build", {
         method: "POST",
         json: { phase: "build", answers: { ...finalAnswers, name: user.name ?? "", email: user.email, targetRole }, targetRole, locale },
       });
-      setResult(data);
+      const cv = normalizeCv(data.cv);
+      setResult({ cv, questions: data.questions });
       setMessages((prev) => [...prev, { role: "adam", text: "Votre CV canadien est prêt. Vous pouvez l'éditer et le télécharger ci-dessous." }]);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur de génération");
@@ -188,7 +180,7 @@ export default function BuilderPage() {
     }
   };
 
-  const updateCv = (cv: CvData) => {
+  const updateCv = (cv: CvJson) => {
     setResult((r) => (r ? { ...r, cv } : r));
     setSaved(false);
   };
@@ -307,7 +299,7 @@ export default function BuilderPage() {
               </div>
             </div>
             <div className="mt-6 lg:mt-0">
-              <CvScorecard scores={result.scores} />
+              <CvScorecard cv={result.cv} />
             </div>
           </div>
         )}

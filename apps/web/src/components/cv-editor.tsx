@@ -1,24 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { CvJson, CvExperienceEntry, CvEducationEntry } from "@adamjobs/cv-engine";
 
-export interface CvData {
-  contact?: { name?: string; email?: string; phone?: string; location?: string };
-  summary?: string;
-  coreCompetencies?: string[];
-  experience?: {
-    id?: string;
-    title?: string;
-    company?: string;
-    startDate?: string;
-    endDate?: string;
-    location?: string;
-    bullets?: string[];
-  }[];
-  education?: { id?: string; institution?: string; degree?: string; field?: string; startDate?: string; endDate?: string }[];
-  languages?: { id?: string; name: string; level?: string }[];
-  certifications?: string[];
-}
+export type CvData = CvJson;
+
+type EditableExperience = CvExperienceEntry & { id?: string };
+type EditableEducation = CvEducationEntry & { id?: string };
 
 export function CvEditor({
   cv,
@@ -39,35 +27,35 @@ export function CvEditor({
   const setContact = (patch: Partial<CvData["contact"]>) =>
     update({ ...draft, contact: { ...draft.contact, ...patch } });
 
-  const setExp = (idx: number, patch: Partial<NonNullable<CvData["experience"]>[number]>) => {
-    const exp = [...(draft.experience ?? [])];
+  const setExp = (idx: number, patch: Partial<EditableExperience>) => {
+    const exp = [...(draft.experience ?? [])] as EditableExperience[];
     if (idx >= exp.length) return;
     exp[idx] = { ...exp[idx], ...patch };
     update({ ...draft, experience: exp });
   };
 
-  const setEdu = (idx: number, patch: Partial<NonNullable<CvData["education"]>[number]>) => {
-    const edu = [...(draft.education ?? [])];
+  const setEdu = (idx: number, patch: Partial<EditableEducation>) => {
+    const edu = [...(draft.education ?? [])] as EditableEducation[];
     if (idx >= edu.length) return;
     edu[idx] = { ...edu[idx], ...patch };
     update({ ...draft, education: edu });
   };
 
   const setBullet = (expIdx: number, bulletIdx: number, value: string) => {
-    const exp = draft.experience ?? [];
+    const exp = (draft.experience ?? []) as EditableExperience[];
     const bullets = [...(exp[expIdx].bullets ?? [])];
     bullets[bulletIdx] = value;
     setExp(expIdx, { bullets });
   };
 
   const addBullet = (expIdx: number) => {
-    const exp = draft.experience ?? [];
+    const exp = (draft.experience ?? []) as EditableExperience[];
     const bullets = [...(exp[expIdx].bullets ?? []), ""];
     setExp(expIdx, { bullets });
   };
 
   const removeBullet = (expIdx: number, bulletIdx: number) => {
-    const exp = draft.experience ?? [];
+    const exp = (draft.experience ?? []) as EditableExperience[];
     const bullets = (exp[expIdx].bullets ?? []).filter((_, i) => i !== bulletIdx);
     setExp(expIdx, { bullets });
   };
@@ -131,7 +119,7 @@ export function CvEditor({
         <section className="mb-6">
           <SectionTitle>Expérience professionnelle</SectionTitle>
           <div className="space-y-5">
-            {draft.experience.map((exp, i) => (
+            {((draft.experience ?? []) as EditableExperience[]).map((exp, i) => (
               <div key={exp.id ?? i} className="rounded-lg border border-slate-100 p-3">
                 <div className="flex items-baseline justify-between">
                   <EditableText
@@ -184,7 +172,7 @@ export function CvEditor({
         <section className="mb-6">
           <SectionTitle>Formation</SectionTitle>
           <div className="space-y-2">
-            {draft.education.map((ed, i) => (
+            {((draft.education ?? []) as EditableEducation[]).map((ed, i) => (
               <div key={ed.id ?? i} className="text-sm">
                 <EditableText
                   value={`${ed.degree ?? ""}${ed.field ? `, ${ed.field}` : ""}${ed.institution ? ` — ${ed.institution}` : ""}`}
@@ -205,16 +193,25 @@ export function CvEditor({
             readOnly={readOnly}
             onChange={(v) => update({
               ...draft,
-              languages: v.split(",").map((s) => {
-                const m = s.trim().match(/^(.+?)\s*\((.+?)\)$/);
-                return m ? { name: m[1].trim(), level: m[2].trim() } : { name: s.trim() };
-              }).filter((l) => l.name),
+              languages: parseLanguages(v),
             })}
           />
         </section>
       )}
     </div>
   );
+}
+
+function parseLanguages(value: string): { name: string; level: string }[] {
+  return value
+    .split(",")
+    .map((s) => {
+      const m = s.trim().match(/^(.+?)\s*\((.+?)\)$/);
+      return m
+        ? { name: m[1].trim(), level: m[2].trim() }
+        : { name: s.trim(), level: "" };
+    })
+    .filter((l) => l.name);
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
